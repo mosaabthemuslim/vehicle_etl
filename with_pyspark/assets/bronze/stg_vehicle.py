@@ -1,4 +1,4 @@
-from dagster import op, job
+from dagster import asset, op, job
 from dagster_pyspark import pyspark_resource
 
 custom_pyspark = pyspark_resource.configured(
@@ -42,3 +42,12 @@ def loading_data_pipeline():
     df = read_df()
 
     write_to_db(df)
+
+
+@asset
+def bronze_asset():
+    result = loading_data_pipeline.execute_in_process()
+    df = result.output_for_node("reading_data_frame")
+    if df is None:
+        raise ValueError("Pipeline returned None instead of a DataFrame")
+    return df

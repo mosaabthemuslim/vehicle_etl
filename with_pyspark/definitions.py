@@ -1,8 +1,11 @@
 import os
-from .bronze.stg_vehicle import loading_data_pipeline
+
+from dagster_pyspark import pyspark_resource
+from .assets.bronze.stg_vehicle import loading_data_pipeline
 from dagster import ConfigurableIOManager, Definitions, asset
 from pyspark.sql import SparkSession
-from .bronze.stg_vehicle import loading_data_pipeline
+from .assets.bronze.stg_vehicle import bronze_asset
+from .assets.silver.get_data import get_dataframe
 
 
 class LocalParquetIOManager(ConfigurableIOManager):
@@ -17,17 +20,19 @@ class LocalParquetIOManager(ConfigurableIOManager):
         return spark.read.parquet(self._get_path(context.upstream_output))
 
 
-@asset
-def bronze_asset():
-    result = loading_data_pipeline.execute_in_process()
-    df = result.output_for_node("reading_data_frame")
-    if df is None:
-        raise ValueError("Pipeline returned None instead of a DataFrame")
-    return df
-
-
 defs = Definitions(
-    assets=[bronze_asset],
+    assets=[bronze_asset, get_dataframe],
     jobs=[loading_data_pipeline],
-    resources={"io_manager": LocalParquetIOManager()},
+    resources={
+        "io_manager": LocalParquetIOManager(),
+        "pyspark": pyspark_resource.configured(
+            {
+                "spark_conf": {
+                    "spark.jars": "/home/mosaab/postgresql-42.jar",
+                    # You can add other Spark configurations here
+                    "spark.app.name": "vehicle_etl",
+                }
+            }
+        ),
+    },
 )

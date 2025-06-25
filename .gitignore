@@ -9,7 +9,9 @@ CLAUDE.md
 *.so
 # pyspark
 bronze_asset/
-
+silver_asset/
+.tmp**/
+get_dataframe/
 # Distribution / packaging
 .Python
 env/
